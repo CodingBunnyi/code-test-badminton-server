@@ -9,6 +9,7 @@ function calculatePlayerResult(inputData) {
   const { round1Data, round2Data } = inputData
   let matches = [...round1Data, ...round2Data]
   const playerMatchMap = new Map()
+  
   // calculate the winner and score dif of each match
   matches = matches.map(match => {
     const player1 = match.players[0]
@@ -57,14 +58,26 @@ function calculatePlayerResult(inputData) {
 }
 
 function sortResult(result) {
-  let rank = 1
   let sortedResult = result.sort((a, b) => {
     if (a.pPoint !== b.pPoint) {
       return b.pPoint - a.pPoint;
     }
     return b.sPoint - a.sPoint;
   })
-  sortedResult = sortedResult.map(result => ({...result, rank: rank++}))
+
+  let currentRank = 1;
+  let currentPPoint = sortedResult[0].pPoint;
+  let currentSPoint = sortedResult[0].sPoint;
+
+  // deal with equal ranks
+  sortedResult.forEach((item, index) => {
+    if (item.pPoint !== currentPPoint || item.sPoint !== currentSPoint) {
+      currentRank = index + 1;
+      currentPPoint = item.pPoint
+      currentSPoint = item.sPoint
+    }
+    item.rank = currentRank;
+  });
   return sortedResult
 }
 
