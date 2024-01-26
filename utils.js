@@ -1,62 +1,68 @@
+// calculate player results, including match outcomes and next round pairs
 function getResult(inputData) {
-  const { result, playerMatchMap } = calculatePlayerResult(inputData)
+  const { round1Data, round2Data } = inputData;
+  let matches = [...round1Data, ...round2Data];
+  const playerMatchMap = new Map();
+
+  matches = calculateMatchResults(matches, playerMatchMap);
+  const playerInfo = mergePlayerInfo(matches);
+  const playerInfoMap = createPlayerInfoMap(playerInfo);
+  const result = Array.from(playerInfoMap, ([name, value]) => ({ name, ...value }))
   const sortedResult = sortResult(result)
-  const pairResult = calculatePairResult(sortedResult, playerMatchMap)
-  return { sortedResult, pairResult }
+  const pairResult =  calculatePairResult(sortedResult, playerMatchMap)
+
+  return { sortedResult, pairResult };
 }
 
-function calculatePlayerResult(inputData) {
-  const { round1Data, round2Data } = inputData
-  let matches = [...round1Data, ...round2Data]
-  const playerMatchMap = new Map()
-  
-  // calculate the winner and score dif of each match
-  matches = matches.map(match => {
-    const player1 = match.players[0]
-    const player2 = match.players[1]
-    const scoreDiff = player1.score - player2.score
-    player1.win = scoreDiff > 0 ? 1 : 0
-    player2.win = scoreDiff < 0 ? 1 : 0
-    player1.scoreDiff = scoreDiff
-    player2.scoreDiff = -scoreDiff
+// calculate match results and update playerMatchMap
+function calculateMatchResults(matches, playerMatchMap) {
+  return matches.map(({ players }) => {
+    const [player1, player2] = players;
+    const scoreDiff = player1.score - player2.score;
+    player1.win = scoreDiff > 0 ? 1 : 0;
+    player2.win = scoreDiff < 0 ? 1 : 0;
+    player1.scoreDiff = scoreDiff;
+    player2.scoreDiff = -scoreDiff;
 
-    // save matched players
-    if (playerMatchMap.has(player1.name)) {
-      playerMatchMap.set(player1.name, playerMatchMap.get(player1.name).add(player2.name))
-    } else {
-      playerMatchMap.set(player1.name, new Set([player2.name]))
-    }
-    if (playerMatchMap.has(player2.name)) {
-      playerMatchMap.set(player2.name, playerMatchMap.get(player2.name).add(player1.name))
-    } else {
-      playerMatchMap.set(player2.name, new Set([player1.name]))
-    }
-    return match
-  })
+    updatePlayerMatchMap(playerMatchMap, player1.name, player2.name);
 
-  // merge player infos
-  let matchPlayers = matches.map(match => match.players)
-  const playerInfo = []
-  for (const matchPlayer of matchPlayers) {
-    playerInfo.push(...matchPlayer)
-  }
+    return { players };
+  });
+}
 
-  // create a playerInfoMap to store pPoint and sPoint of each player
-  const playerInfoMap = new Map()
+// merge player information from matches
+function mergePlayerInfo(matches) {
+  const matchPlayers = matches.map(({ players }) => players).flat();
+  return matchPlayers;
+}
+
+// create a playerInfoMap to store pPoint and sPoint of each player
+function createPlayerInfoMap(playerInfo) {
+  const playerInfoMap = new Map();
   for (const player of playerInfo) {
-    playerInfoMap.set(player.name,
-      {
-        pPoint: playerInfoMap.has(player.name) ? (playerInfoMap.get(player.name).pPoint + player.win) : player.win,
-        sPoint: playerInfoMap.has(player.name) ? (playerInfoMap.get(player.name).sPoint + player.scoreDiff) : player.scoreDiff,
-      })
+    const { name, win, scoreDiff } = player;
+    const existingInfo = playerInfoMap.get(name) || { pPoint: 0, sPoint: 0 };
+    playerInfoMap.set(name, { pPoint: existingInfo.pPoint + win, sPoint: existingInfo.sPoint + scoreDiff });
   }
+  return playerInfoMap;
+}
 
-  return {
-    result: Array.from(playerInfoMap, ([name, value]) => ({ name, ...value })),
-    playerMatchMap
+// update playerMatchMap with a new match entry
+function updatePlayerMatchMap(playerMatchMap, playerName1, playerName2) {
+  updatePlayerMatchMapEntry(playerMatchMap, playerName1, playerName2);
+  updatePlayerMatchMapEntry(playerMatchMap, playerName2, playerName1);
+}
+
+// update a single entry in playerMatchMap
+function updatePlayerMatchMapEntry(playerMatchMap, playerName, opponentName) {
+  if (playerMatchMap.has(playerName)) {
+    playerMatchMap.get(playerName).add(opponentName);
+  } else {
+    playerMatchMap.set(playerName, new Set([opponentName]));
   }
 }
 
+// sort the results and add the rank
 function sortResult(result) {
   let sortedResult = result.sort((a, b) => {
     if (a.pPoint !== b.pPoint) {
@@ -81,6 +87,8 @@ function sortResult(result) {
   return sortedResult
 }
 
+
+// calculate the next round pairs
 function calculatePairResult(sortedResult, playerMatchMap) {
   // next round of matching results
   const matchPairs = [];
