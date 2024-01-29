@@ -2,6 +2,9 @@
 function getResult(inputData) {
   const { round1Data, round2Data } = inputData;
   let matches = [...round1Data, ...round2Data];
+  if (matches.length === 0) {
+    return { sortedResult: [], pairResult: [] }
+  }
   const playerMatchMap = new Map();
 
   matches = calculateMatchResults(matches, playerMatchMap);
